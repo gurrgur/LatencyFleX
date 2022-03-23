@@ -29,30 +29,37 @@ void lfx_FEngineLoop_Tick(void *self) {
   real_tick(self);
 }
 
-void ue4_hook_init() {
-  if (getenv("LFX_UE4_HOOK")) {
-    real_tick = reinterpret_cast<tick_func>(std::stoul(getenv("LFX_UE4_HOOK"), nullptr, 16));
+void hook_init() {
+  if (getenv("LFX_HOOK")) {
+    real_tick = reinterpret_cast<tick_func>(std::stoul(getenv("LFX_HOOK"), nullptr, 16));
   } else {
     return;
   }
+
   int err;
+  err = funchook_set_debug_file("_funchook_debug.log");
+
   tick_hook = funchook_create();
+  
   err = funchook_prepare(tick_hook, (void **)&real_tick, (void *)lfx_FEngineLoop_Tick);
   if (err != 0)
-    goto err;
+  {
+    std::cerr << "LatencyFleX: Error: funchook_prepare failure with err=" << err << std::endl;
+    return;
+  }
+
   err = funchook_install(tick_hook, 0);
   if (err != 0)
-    goto err;
-  std::cerr << "LatencyFleX: Successfully initialized UE4 hook" << std::endl;
-  return;
-
-err:
-  std::cerr << "LatencyFleX: Error during UE4 hook initialization, err=" << err << std::endl;
+  { 
+    std::cerr << "LatencyFleX: Error: funchook_install failure with err=" << err << std::endl;
+    return;
+  }
+  std::cerr << "LatencyFleX: Successfully initialized hook" << std::endl;
 }
 
 class OnLoad {
 public:
-  OnLoad() { ue4_hook_init(); }
+  OnLoad() { hook_init(); }
 };
 
 [[maybe_unused]] OnLoad on_load;
